@@ -1,25 +1,33 @@
-from flask import Flask
-import telebot
 import os
+from flask import Flask, request, jsonify
+import telebot
+import requests
 
-TOKEN = os.getenv("BOT_TOKEN")  # שים את הטוקן שלך בסביבת העבודה של Render
+TOKEN = os.environ.get("TELEGRAM_TOKEN")  # ודא שהגדרת ב-Render
 bot = telebot.TeleBot(TOKEN)
 
 app = Flask(__name__)
 
-@app.route('/')
+# דף בית לבדיקה מהדפדפן
+@app.get("/")
 def home():
-    return "Bot is running!"
+    return "Bot is running!", 200
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "היי! הבוט באוויר 🚀")
+# זה הנתיב שטלגרם יקרא לו
+@app.post("/webhook")
+def webhook():
+    try:
+        update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
+        bot.process_new_updates([update])
+    except Exception as e:
+        print("webhook error:", e)
+    return jsonify(ok=True)
 
-if __name__ == '__main__':
-    import threading
+# תגובה בסיסית לכל טקסט
+@bot.message_handler(content_types=["text"])
+def echo(msg):
+    bot.reply_to(msg, f"קיבלתי: {msg.text}")
 
-    def run_bot():
-        bot.polling()
-
-    threading.Thread(target=run_bot).start()
+if __name__ == "__main__":
+    # להרצה מקומית (לא בשימוש ב-Render)
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
